@@ -48,10 +48,8 @@ def get_auth_header(token):
 
 ##############################################
 
+############## Search Functions ##############
 
-##############################################
-# Search Functions
-# ~~~~~~~~~~~~~~~~
 def search_for_artist(token, artist_name):
     url = "https://api.spotify.com/v1/search"
     headers = get_auth_header(token)
@@ -81,6 +79,23 @@ def get_artist_suggestions(token, query_artist):
     json_result = result.json()["artists"]["items"]                                
     return json_result
 
+def get_track_suggestions(token, query_track):
+    if not query_track: 
+        return []
+    url = "https://api.spotify.com/v1/search"
+    headers = get_auth_header(token)
+    params = {
+        'q': query_track,
+        'type': 'track',
+        'limit': 5
+    }
+    result = get(url=url, headers=headers, params=params)
+    if result.status_code != 200:
+        st.error("Error fetching track data")
+        return []
+    json_result = result.json()["artists"]["items"]                                
+    return json_result
+
 def get_all_songs_by_artist(token, artist_id):
     url = "https://api.spotify.com/v1/search"
     headers = get_auth_header(token)
@@ -93,39 +108,91 @@ def get_all_songs_by_artist(token, artist_id):
         return None
     return json_result[0]
 
+# def search_for_track(token, track_name):
+#     url = "https://api.spotify.com/v1/search"
+#     headers = get_auth_header(token)
+#     # query = f"?type=track&q={track_name}&limit=1"
+#     params = {
+#         'q': track_name,
+#         'type': 'track',
+#         'limit': 5
+#     }
+#     result = get(url=url, headers=headers, params=params)
+#     json_result = result.json()
+#     # if json_result['tracks']['items']:
+#     #     track_id = json_result['tracks']['items']['id']
+#     #     return track_id
+#     # else:
+#     #     return None
+
+#     # Dropdown for artist selection
+#     suggestions = json_result['tracks']['items']
+#     if suggestions:
+#         track_suggestions = [track['name'] for track in suggestions]
+#         selected_track_name = st.selectbox("Select a track:", track_suggestions)
+#         if selected_track_name:
+#             st.session_state['selected_track'] = selected_track_name
+#             st.write(f"Selected Track: {selected_track_name}")
+#     else:
+#         st.sidebar.write("No suggestions available")
+
+#     return json_result['tracks']['items'][name=selected_track_name]
+
+# def search_for_track(token, track_name):
+#     url = "https://api.spotify.com/v1/search"
+#     headers = get_auth_header(token)
+#     params = {
+#         'q': track_name,
+#         'type': 'track',
+#         'limit': 5
+#     }
+#     result = get(url=url, headers=headers, params=params)
+#     json_result = result.json()
+    
+#     track_suggestions = []
+#     track_mapping = {}
+
+#     if 'tracks' in json_result and 'items' in json_result['tracks']:
+#         for track in json_result['tracks']['items']:
+#             track_name = track['name']
+#             track_artists = track['artists']
+#             track_id = track['id']
+#             track_suggestions.append([track_name, track_artists])
+#             track_mapping[track_name] = track_id
+
+#     return track_suggestions, track_mapping
+
 def search_for_track(token, track_name):
     url = "https://api.spotify.com/v1/search"
     headers = get_auth_header(token)
-    query = f"?type=track&q={track_name}&limit=1"
     params = {
         'q': track_name,
         'type': 'track',
-        'limit': 1
+        'limit': 5
     }
-    result = get('https://api.spotify.com/v1/search', headers=headers, params=params)
+    result = get(url=url, headers=headers, params=params)
     json_result = result.json()
-    if json_result['tracks']['items']:
-        track_id = json_result['tracks']['items'][0]['id']
-        return track_id
-    else:
-        return None
+    
+    track_suggestions = []
+    track_mapping = {}
 
+    if 'tracks' in json_result and 'items' in json_result['tracks']:
+        for track in json_result['tracks']['items']:
+            track_name = track['name']
+            # Join the artist names into a single string
+            artist_names = ', '.join(artist['name'] for artist in track['artists'])
+            track_id = track['id']
+            # Format each suggestion as "Track Name - Artist Name(s)"
+            formatted_track = f"{track_name} - {artist_names}"
+            track_suggestions.append(formatted_track)
+            track_mapping[formatted_track] = track_id
 
+    return track_suggestions, track_mapping
 
-
-    query_url = url + query
-    result = get(query_url, headers=headers)
-    json_result = json.loads(result.content)["track"]["items"]                                   
-    if len(json_result) == 0:
-        st.write("No artist with this name exists...")
-        return None
-    return json_result[0]
 
 ##############################################
 
-##############################################
-# Artist functions 
-# ~~~~~~~~~~~~~~~~
+############### Artist functions #############
 
 def get_top_tracks_by_artist(token, artist_id):
     url = f"https://api.spotify.com/v1/artists/{artist_id}/top-tracks?country=US"
@@ -136,9 +203,7 @@ def get_top_tracks_by_artist(token, artist_id):
 
 ##############################################
 
-##############################################
-# Audio Analysis functions
-# ~~~~~~~~~~~~~~~~~~~~~~~~
+######### Audio Analysis functions ###########
 
 def get_audio_analysis(token, song_id):
     url = f"https://api.spotify.com/v1/audio-analysis/{song_id}"

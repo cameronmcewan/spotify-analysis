@@ -20,24 +20,8 @@ if client_id is None or client_secret is None:
     st.error("Client ID or Client Secret is not set.")
     st.stop()
 
-def get_artist_suggestions(token, query_artist):
-    if not query_artist: 
-        return []
-    url = "https://api.spotify.com/v1/search"
-    headers = get_auth_header(token)
-    params = {
-        'q': query_artist,
-        'type': 'artist',
-        'limit': 4
-    }
-    result = get(url=url, headers=headers, params=params)
-    if result.status_code != 200:
-        st.error("Error fetching artist data")
-        return []
-    json_result = result.json()["artists"]["items"]                                
-    return json_result
-
-
+############### SIDEBAR ####################
+    
 query_artist = st.sidebar.text_input(label="Search for an artist") 
 # Get suggestions (API call simulation)
 suggestions = get_artist_suggestions(token, query_artist)
@@ -52,6 +36,7 @@ if suggestions:
 else:
     st.sidebar.write("No suggestions available")
 
+############################################
 
 
 result = search_for_artist(token, query_artist)
@@ -74,10 +59,25 @@ for idx, song in enumerate(songs):
     st.write(f"{idx + 1}. { song['name']}")
 
 st.subheader("Dive into a song analysis")
-user_song = st.text_input(label="Search for a song") 
-song_id = search_for_track(token, user_song)
 
-st.subheader(f"Audio Features of {user_song}")
+#########################################################
+
+track_name = st.text_input("Search for a track")
+track_suggestions, track_mapping = search_for_track(token, track_name)
+
+if track_suggestions:
+    selected_track_name = st.selectbox("Select a track:", track_suggestions)
+    if selected_track_name:
+        selected_track_id = track_mapping[selected_track_name]
+        st.session_state['selected_track'] = selected_track_name
+        st.write(f"Selected Track: {selected_track_name}, ID: {selected_track_id}")
+else:
+    st.write("No track suggestions available.")
+
+
+#########################################################
+
+st.subheader(f"Audio Features of {track_name}")
 # st.write("Example audio analysis response:")
 example_song_id = "11dFghVXANMlKmJXsNCbNl"
 # song_analysis = get_audio_analysis(token, song_id=example_song_id)
