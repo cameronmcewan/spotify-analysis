@@ -16,6 +16,9 @@ if client_id is None or client_secret is None:
     st.error("Client ID or Client Secret is not set.")
     st.stop()
 
+##############################################
+# Set up functions 
+# ~~~~~~~~~~~~~~~~
 @st.cache_data(ttl="59min")
 def get_token():
     try:
@@ -43,28 +46,39 @@ def get_token():
 def get_auth_header(token):
     return {"Authorization": "Bearer " + token}
 
-# https://api.spotify.com/v1/audio-analysis/{id}
+##############################################
 
+
+##############################################
+# Search Functions
+# ~~~~~~~~~~~~~~~~
 def search_for_artist(token, artist_name):
     url = "https://api.spotify.com/v1/search"
     headers = get_auth_header(token)
     query = f"?q={artist_name}&type=artist&limit=1"
-
     query_url = url + query
     result = get(query_url, headers=headers)
-    json_result = json.loads(result.content)["artists"]["items"]
-                                             
+    json_result = json.loads(result.content)["artists"]["items"]                                   
     if len(json_result) == 0:
         st.write("No artist with this name exists...")
         return None
-
     return json_result[0]
 
-def get_top_tracks_by_artist(token, artist_id):
-    url = f"https://api.spotify.com/v1/artists/{artist_id}/top-tracks?country=US"
+def get_artist_suggestions(token, query_artist):
+    if not query_artist: 
+        return []
+    url = "https://api.spotify.com/v1/search"
     headers = get_auth_header(token)
-    result = get(url, headers=headers)
-    json_result = json.loads(result.content)["tracks"]
+    params = {
+        'q': query_artist,
+        'type': 'artist',
+        'limit': 4
+    }
+    result = get(url=url, headers=headers, params=params)
+    if result.status_code != 200:
+        st.error("Error fetching artist data")
+        return []
+    json_result = result.json()["artists"]["items"]                                
     return json_result
 
 def get_all_songs_by_artist(token, artist_id):
@@ -73,13 +87,58 @@ def get_all_songs_by_artist(token, artist_id):
     query = f"?type=track&q=artist:{artist_id}"
     query_url = url + query
     result = get(query_url, headers=headers)
-    json_result = json.loads(result.content)["artists"]["items"]
-                                             
+    json_result = json.loads(result.content)["artists"]["items"]                                 
     if len(json_result) == 0:
         st.write("No artist with this name exists...")
         return None
-
     return json_result[0]
+
+def search_for_track(token, track_name):
+    url = "https://api.spotify.com/v1/search"
+    headers = get_auth_header(token)
+    query = f"?type=track&q={track_name}&limit=1"
+    params = {
+        'q': track_name,
+        'type': 'track',
+        'limit': 1
+    }
+    result = get('https://api.spotify.com/v1/search', headers=headers, params=params)
+    json_result = result.json()
+    if json_result['tracks']['items']:
+        track_id = json_result['tracks']['items'][0]['id']
+        return track_id
+    else:
+        return None
+
+
+
+
+    query_url = url + query
+    result = get(query_url, headers=headers)
+    json_result = json.loads(result.content)["track"]["items"]                                   
+    if len(json_result) == 0:
+        st.write("No artist with this name exists...")
+        return None
+    return json_result[0]
+
+##############################################
+
+##############################################
+# Artist functions 
+# ~~~~~~~~~~~~~~~~
+
+def get_top_tracks_by_artist(token, artist_id):
+    url = f"https://api.spotify.com/v1/artists/{artist_id}/top-tracks?country=US"
+    headers = get_auth_header(token)
+    result = get(url, headers=headers)
+    json_result = json.loads(result.content)["tracks"]
+    return json_result
+
+##############################################
+
+##############################################
+# Audio Analysis functions
+# ~~~~~~~~~~~~~~~~~~~~~~~~
 
 def get_audio_analysis(token, song_id):
     url = f"https://api.spotify.com/v1/audio-analysis/{song_id}"
