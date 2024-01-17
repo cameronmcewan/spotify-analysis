@@ -7,22 +7,13 @@ import json
 import pandas as pd
 import plotly.express as px
 
+#########  Set up functions    ################################
 load_dotenv()
-
 client_id = os.getenv("CLIENT_ID")
-# client_id = '4258700cad6348589634464fd9083443'
 client_secret = os.getenv("CLIENT_SECRET")
-# client_secret = '5edd7d5821ff49a1ab236d8014ef36bc'
 
-if client_id is None or client_secret is None:
-    st.error("Client ID or Client Secret is not set.")
-    st.stop()
-
-##############################################
-# Set up functions 
-# ~~~~~~~~~~~~~~~~
 @st.cache_data(ttl="59min")
-def get_token():
+def get_token(client_id, client_secret):
     try:
         auth_string = client_id + ":" + client_secret
         auth_bytes = auth_string.encode("utf-8")
@@ -38,7 +29,8 @@ def get_token():
         result.raise_for_status()  # This will raise an error for HTTP error responses
 
         json_result = json.loads(result.content)
-        return json_result["access_token"]
+        token = json_result["access_token"]
+        return token
 
     except Exception as e:
         st.error(f"Failed to get token: {e}")
@@ -116,31 +108,36 @@ def get_all_songs_by_artist(token, artist_id):
     return json_result[0]
 
 def search_for_track(token, track_name):
-    url = "https://api.spotify.com/v1/search"
-    headers = get_auth_header(token)
-    params = {
-        'q': track_name,
-        'type': 'track',
-        'limit': 5
-    }
-    result = get(url=url, headers=headers, params=params)
-    json_result = result.json()
-    
-    track_suggestions = []
-    track_mapping = {}
+    try:
+        url = "https://api.spotify.com/v1/search"
+        headers = get_auth_header(token)
+        params = {
+            'q': track_name,
+            'type': 'track',
+            'limit': 5
+        }
+        result = get(url=url, headers=headers, params=params)
+        json_result = result.json()
+        
+        track_suggestions = []
+        track_mapping = {}
 
-    if 'tracks' in json_result and 'items' in json_result['tracks']:
-        for track in json_result['tracks']['items']:
-            track_name = track['name']
-            # Join the artist names into a single string
-            artist_names = ', '.join(artist['name'] for artist in track['artists'])
-            track_id = track['id']
-            # Format each suggestion as "Track Name - Artist Name(s)"
-            formatted_track = f"{track_name} - {artist_names}"
-            track_suggestions.append(formatted_track)
-            track_mapping[formatted_track] = track_id
+        if 'tracks' in json_result and 'items' in json_result['tracks']:
+            for track in json_result['tracks']['items']:
+                track_name = track['name']
+                # Join the artist names into a single string
+                artist_names = ', '.join(artist['name'] for artist in track['artists'])
+                track_id = track['id']
+                # Format each suggestion as "Track Name - Artist Name(s)"
+                formatted_track = f"{track_name} - {artist_names}"
+                track_suggestions.append(formatted_track)
+                track_mapping[formatted_track] = track_id
 
-    return track_suggestions, track_mapping
+        return track_suggestions, track_mapping
+
+    except Exception as e:
+        st.error(f"An error occurred: {e}")
+        return [], {}
 
 ##############################################
 
