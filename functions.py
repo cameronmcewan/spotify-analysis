@@ -4,6 +4,8 @@ import os
 import base64
 from requests import post, get
 import json
+import pandas as pd
+import plotly.express as px
 
 load_dotenv()
 
@@ -49,18 +51,23 @@ def get_auth_header(token):
 ##############################################
 
 ############## Search Functions ##############
-
 def search_for_artist(token, artist_name):
     url = "https://api.spotify.com/v1/search"
     headers = get_auth_header(token)
     query = f"?q={artist_name}&type=artist&limit=1"
     query_url = url + query
     result = get(query_url, headers=headers)
-    json_result = json.loads(result.content)["artists"]["items"]                                   
-    if len(json_result) == 0:
-        st.write("No artist with this name exists...")
+    json_result = json.loads(result.content)
+
+    # Check if 'artists' and 'items' keys exist
+    if 'artists' in json_result and 'items' in json_result['artists']:
+        if len(json_result['artists']['items']) == 0:
+            st.write("No artist with this name exists...")
+            return None
+        return json_result['artists']['items'][0]
+    else:
+        st.error("Unexpected response format from Spotify API.")
         return None
-    return json_result[0]
 
 def get_artist_suggestions(token, query_artist):
     if not query_artist: 
@@ -108,60 +115,6 @@ def get_all_songs_by_artist(token, artist_id):
         return None
     return json_result[0]
 
-# def search_for_track(token, track_name):
-#     url = "https://api.spotify.com/v1/search"
-#     headers = get_auth_header(token)
-#     # query = f"?type=track&q={track_name}&limit=1"
-#     params = {
-#         'q': track_name,
-#         'type': 'track',
-#         'limit': 5
-#     }
-#     result = get(url=url, headers=headers, params=params)
-#     json_result = result.json()
-#     # if json_result['tracks']['items']:
-#     #     track_id = json_result['tracks']['items']['id']
-#     #     return track_id
-#     # else:
-#     #     return None
-
-#     # Dropdown for artist selection
-#     suggestions = json_result['tracks']['items']
-#     if suggestions:
-#         track_suggestions = [track['name'] for track in suggestions]
-#         selected_track_name = st.selectbox("Select a track:", track_suggestions)
-#         if selected_track_name:
-#             st.session_state['selected_track'] = selected_track_name
-#             st.write(f"Selected Track: {selected_track_name}")
-#     else:
-#         st.sidebar.write("No suggestions available")
-
-#     return json_result['tracks']['items'][name=selected_track_name]
-
-# def search_for_track(token, track_name):
-#     url = "https://api.spotify.com/v1/search"
-#     headers = get_auth_header(token)
-#     params = {
-#         'q': track_name,
-#         'type': 'track',
-#         'limit': 5
-#     }
-#     result = get(url=url, headers=headers, params=params)
-#     json_result = result.json()
-    
-#     track_suggestions = []
-#     track_mapping = {}
-
-#     if 'tracks' in json_result and 'items' in json_result['tracks']:
-#         for track in json_result['tracks']['items']:
-#             track_name = track['name']
-#             track_artists = track['artists']
-#             track_id = track['id']
-#             track_suggestions.append([track_name, track_artists])
-#             track_mapping[track_name] = track_id
-
-#     return track_suggestions, track_mapping
-
 def search_for_track(token, track_name):
     url = "https://api.spotify.com/v1/search"
     headers = get_auth_header(token)
@@ -188,7 +141,6 @@ def search_for_track(token, track_name):
             track_mapping[formatted_track] = track_id
 
     return track_suggestions, track_mapping
-
 
 ##############################################
 
@@ -218,3 +170,28 @@ def get_audio_features(token, song_id):
     result = get(url, headers=headers)
     json_result = json.loads(result.content)
     return json_result
+
+def create_track_feature_radar_plot(token, song_id):
+    # Fetch audio analysis and features
+    audio_features = get_audio_features(token, song_id=song_id)
+
+    # Extract required features
+    song_danceability = audio_features["danceability"]
+    song_acousticness = audio_features["acousticness"]
+    song_energy = audio_features["energy"]
+    song_instrumentalness = audio_features["instrumentalness"]
+    song_liveness = audio_features["liveness"]
+    song_speechiness = audio_features["speechiness"]
+    song_valence = audio_features["valence"]
+
+    # Create a DataFrame for the features
+    df = pd.DataFrame({
+        'r': [song_acousticness, song_danceability, song_energy, song_instrumentalness, song_liveness, song_speechiness, song_valence],
+        'theta': ['Acousticness', 'Danceability', 'Energy', 'Instrumentalness', 'Liveness', 'Speechiness', 'Valence']
+    })
+
+    # Create the polar plot
+    fig = px.line_polar(df, r='r', theta='theta', line_close=True, title="Track Audio Features")
+    fig.update_traces(fill='toself')
+
+    return fig
